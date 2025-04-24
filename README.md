@@ -27,6 +27,7 @@ A multilingual Business Intelligence agent that provides actionable insights thr
 │   ├── agents/       # AI agent logic
 │   ├── analysis/     # Data analysis modules
 │   ├── data/        # Data processing
+│   │   └── mock_analytics.py  # Mock data generation
 │   ├── visualization/ # Visualization modules
 │   └── models/       # Model files (if using local models)
 ├── data/             # Mock data and data processing
@@ -55,7 +56,17 @@ A multilingual Business Intelligence agent that provides actionable insights thr
 
 ### Required Accounts and API Keys
 1. Google Cloud Platform account
+   - Visit: https://console.cloud.google.com/
+   - Create a new project
+   - Enable the Gemini API
+   - Create API credentials
+
 2. Gemini API key
+   - Go to Google Cloud Console
+   - Navigate to "APIs & Services" > "Credentials"
+   - Create an API key
+   - Copy the key for later use
+
 3. (Optional) Google Analytics account for real data integration
 
 ## Installation Guide
@@ -89,7 +100,7 @@ pip install -r requirements.txt
 Create a `.env` file in the `backend` directory with the following content:
 ```env
 # API Keys
-GEMINI_API_KEY=your_gemini_api_key_here
+GOOGLE_API_KEY=your_gemini_api_key_here
 
 # Database Configuration
 DATABASE_URL=sqlite:///./business_intelligence.db
@@ -100,15 +111,32 @@ PORT=8000
 DEBUG=True
 
 # Optional: Model Configuration
-MODEL_NAME=gemini-pro
+MODEL_NAME=gemini-1.5-pro
 TEMPERATURE=0.7
-MAX_TOKENS=1000
+MAX_TOKENS=2048
 ```
 
-#### Initialize Database
+#### Initialize Database and Generate Mock Data
 ```bash
+# This will create the database and generate mock data
 python init_db.py
 ```
+
+The mock data generation will:
+1. Create the SQLite database
+2. Generate 30 days of mock analytics data with the following columns:
+   - `date`: Timestamp (YYYY-MM-DD HH:MM:SS)
+   - `page_views`: Number of page views (integer)
+   - `unique_visitors`: Number of unique visitors (integer)
+   - `session_duration`: Average session duration in minutes (float)
+   - `bounce_rate`: Percentage of visitors who leave without interaction (float, 0-1)
+   - `conversion_rate`: Percentage of visitors who complete a desired action (float, 0-1)
+
+The mock data includes realistic patterns:
+- 20% more traffic on weekdays
+- 30% more traffic during business hours (9 AM - 5 PM)
+- Random variations within realistic bounds
+- Hourly data points for granular analysis
 
 ### 3. Frontend Setup
 
@@ -145,9 +173,95 @@ The frontend application will be available at `http://localhost:3000`
 
 ## API Documentation
 
-Once the backend server is running, you can access the API documentation at:
+### Available Endpoints
+
+1. **Natural Language Query**
+   - Endpoint: `POST /query`
+   - Request Body:
+     ```json
+     {
+       "text": "What was the average session duration last week?",
+       "language": "en"
+     }
+     ```
+   - Response:
+     ```json
+     {
+       "response": "The average session duration last week was 3.5 minutes."
+     }
+     ```
+
+2. **Get Analytics Data**
+   - Endpoint: `GET /analytics?days=30`
+   - Query Parameters:
+     - `days`: Number of days of data to retrieve (default: 30)
+   - Response:
+     ```json
+     {
+       "success": true,
+       "data": [
+         {
+           "date": "2024-04-24 10:00:00",
+           "page_views": 5234,
+           "unique_visitors": 3123,
+           "session_duration": 3.5,
+           "bounce_rate": 0.35,
+           "conversion_rate": 0.02
+         }
+       ],
+       "error": null
+     }
+     ```
+
+3. **Get Analytics Summary**
+   - Endpoint: `GET /analytics/summary`
+   - Response:
+     ```json
+     {
+       "success": true,
+       "summary": {
+         "average_page_views": 5234.5,
+         "average_unique_visitors": 3123.2,
+         "average_session_duration": 3.5,
+         "average_bounce_rate": 0.35,
+         "average_conversion_rate": 0.02,
+         "last_update": "2024-04-24 10:00:00"
+       },
+       "error": null
+     }
+     ```
+
+### Accessing API Documentation
+Once the backend server is running, you can access:
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
+
+## Mock Data Management
+
+### Regenerating Mock Data
+To regenerate the mock data:
+1. Stop the backend server
+2. Run `python init_db.py` again
+3. Restart the backend server
+
+### Mock Data Patterns
+The mock data generator creates realistic patterns:
+1. **Time-based Variations**
+   - Weekdays: 20% more traffic
+   - Weekends: 20% less traffic
+   - Business hours (9 AM - 5 PM): 30% more traffic
+   - Non-business hours: 30% less traffic
+
+2. **Data Ranges**
+   - Page Views: 2000-8000 per hour
+   - Unique Visitors: 1000-5000 per hour
+   - Session Duration: 1-10 minutes
+   - Bounce Rate: 10%-80%
+   - Conversion Rate: 0.5%-10%
+
+3. **Random Variations**
+   - Each metric has random variations within ±10% of the base value
+   - Values are constrained to realistic ranges
 
 ## Troubleshooting
 
@@ -158,6 +272,7 @@ Once the backend server is running, you can access the API documentation at:
    - Check if all dependencies are installed correctly
    - Verify the `.env` file exists and has correct values
    - Check if port 8000 is available
+   - Ensure the database is initialized with `init_db.py`
 
 2. **Frontend Won't Start**
    - Ensure Node.js 16+ is installed
@@ -172,6 +287,11 @@ Once the backend server is running, you can access the API documentation at:
    - Verify the backend server is running
    - Check if CORS is properly configured
    - Verify API endpoints in frontend environment variables
+
+5. **Gemini API Issues**
+   - Verify your API key is correct
+   - Check your Google Cloud Console for API quota limits
+   - Ensure the Gemini API is enabled in your project
 
 ### Getting Help
 
@@ -222,14 +342,14 @@ For questions and support:
 
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
-| GEMINI_API_KEY | Your Gemini API key | Yes | - |
+| GOOGLE_API_KEY | Your Google API key | Yes | - |
 | DATABASE_URL | Database connection string | Yes | sqlite:///./business_intelligence.db |
 | HOST | Backend server host | No | 0.0.0.0 |
 | PORT | Backend server port | No | 8000 |
 | DEBUG | Debug mode | No | True |
-| MODEL_NAME | Gemini model to use | No | gemini-pro |
+| MODEL_NAME | Gemini model to use | No | gemini-1.5-pro |
 | TEMPERATURE | Model temperature (0-1) | No | 0.7 |
-| MAX_TOKENS | Maximum tokens per response | No | 1000 |
+| MAX_TOKENS | Maximum tokens per response | No | 2048 |
 
 ## Contributing
 
